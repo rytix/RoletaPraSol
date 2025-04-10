@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Roleta de Frutas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+    }
+    #container {
+      display: inline-block;
+      position: relative;
+    }
+    /* Container da roleta */
+    #wheelContainer {
+      position: relative;
+      width: 500px;
+      height: 500px;
+      margin: 0 auto;
+    }
+    /* Canvas com a roleta */
+    #wheelCanvas {
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      transition: transform 4s cubic-bezier(.33,.91,.59,1);
+    }
+    /* Ponteiro (aponta para o topo) */
+    #pointer {
+      position: absolute;
+      top: -20px;
+      left: calc(50% - 15px);
+      width: 0;
+      height: 0;
+      border-left: 15px solid transparent;
+      border-right: 15px solid transparent;
+      border-bottom: 20px solid red;
+    }
+    /* Botão de girar */
+    #spinButton {
+      margin-top: 30px;
+      padding: 10px 30px;
+      font-size: 1.2em;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #spinButton:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    /* Resultado */
+    #result {
+      margin-top: 20px;
+      font-size: 1.4em;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Roleta de Frutas</h1>
+  <div id="container">
+    <!-- Ponteiro -->
+    <div id="pointer"></div>
+    <!-- Container do canvas -->
+    <div id="wheelContainer">
+      <canvas id="wheelCanvas" width="500" height="500"></canvas>
+    </div>
+    <button id="spinButton">Girar</button>
+    <div id="result">Resultado: </div>
+  </div>
+  
+  <!-- Elemento de áudio. Coloque um arquivo de som (por exemplo, spin-sound.mp3) no mesmo diretório ou altere o src -->
+  <audio id="spinSound" src="spin-sound.mp3"></audio>
+  
+  <script>
+    // Array com as frutas (você pode adicionar ou remover conforme desejar)
+    const fruits = ["Maçã", "Banana", "Abacaxi", "Laranja", "Manga", "Melancia", "Morango", "Uva"];
+
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    const spinButton = document.getElementById("spinButton");
+    const resultDiv = document.getElementById("result");
+    const spinSound = document.getElementById("spinSound");
+
+    // Número de segmentos
+    const segments = fruits.length;
+    const segAngle = 2 * Math.PI / segments;
+    
+    // Cores para os segmentos (pode alterar conforme preferir)
+    const colors = [
+      "#FF5733", "#FFC300", "#DAF7A6", "#33FFBD",
+      "#3380FF", "#9D33FF", "#FF33F6", "#33FFF5"
+    ];
+    
+    // Desenha a roleta com cada segmento e o nome da fruta correspondente
+    function drawWheel() {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = canvas.width / 2;
+
+      // Limpa o canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < segments; i++) {
+        // Define a cor do segmento (repete a paleta se necessário)
+        ctx.fillStyle = colors[i % colors.length];
+        // Define o ângulo inicial e final
+        const startAngle = i * segAngle;
+        const endAngle = startAngle + segAngle;
+
+        // Desenha o segmento
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fill();
+
+        // Desenha a linha de divisão
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX + radius * Math.cos(startAngle), centerY + radius * Math.sin(startAngle));
+        ctx.stroke();
+
+        // Posiciona o texto centralizado em cada segmento
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        const textAngle = startAngle + segAngle / 2;
+        ctx.rotate(textAngle);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 20px sans-serif";
+        ctx.fillText(fruits[i], radius - 20, 10);
+        ctx.restore();
+      }
+    }
+
+    // Desenha a roleta inicialmente
+    drawWheel();
+
+    // Variável para armazenar o ângulo atual da roleta
+    let currentRotation = 0;
+
+    // Evento do botão: girar a roleta
+    spinButton.addEventListener("click", function() {
+      // Desabilita o botão enquanto gira
+      spinButton.disabled = true;
+      resultDiv.textContent = "Girando...";
+      
+      // Toca o som
+      spinSound.currentTime = 0;
+      spinSound.play();
+
+      // Escolhe aleatoriamente um índice para a fruta
+      const chosenIndex = Math.floor(Math.random() * segments);
+      
+      // Cálculo para que a fruta sorteada fique na posição do ponteiro (o ponteiro está apontando para o topo)
+      // Lembrando que o canvas começa no 0º (para a direita) e o ponteiro está em -90º.
+      const segmentDeg = 360 / segments;
+      // O ângulo central do segmento escolhido (em graus)
+      const chosenAngle = chosenIndex * segmentDeg + segmentDeg / 2;
+      // Calcula o ângulo que precisamos rotacionar para que o segmento fique no topo (-90º)
+      // A fórmula é: ângulo final = (360 * número de giros) + (360 - (chosenAngle - 90))
+      const spins = 5; // número de giros completos
+      const finalRotation = spins * 360 + (360 - (chosenAngle - 90));
+      
+      // Atualiza o ângulo final acumulando o giro atual
+      currentRotation += finalRotation;
+      
+      // Aplica a rotação com CSS
+      canvas.style.transform = `rotate(${currentRotation}deg)`;
+      
+      // Aguarda o fim da animação para atualizar o resultado
+      canvas.addEventListener("transitionend", function handler() {
+        // Para segurança: pausa o som caso ainda esteja tocando
+        spinSound.pause();
+
+        // Mostra o resultado
+        resultDiv.textContent = "Resultado: " + fruits[chosenIndex];
+
+        // Reabilita o botão
+        spinButton.disabled = false;
+        // Remove o listener para evitar múltiplos disparos
+        canvas.removeEventListener("transitionend", handler);
+      });
+    });
+  </script>
+</body>
+</html>
